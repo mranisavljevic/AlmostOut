@@ -5,8 +5,8 @@
 //  Created by Miles Ranisavljevic on 8/11/25.
 //
 
-import XCTest
 import Combine
+import Foundation
 
 class MockAuthService: AuthServiceProtocol {
     @Published var currentUser: User?

@@ -6,7 +6,6 @@
 //
 
 import XCTest
-@testable import AlmostOut
 
 class FirebaseIntegrationTests: XCTestCase {
     // These would test actual Firebase integration

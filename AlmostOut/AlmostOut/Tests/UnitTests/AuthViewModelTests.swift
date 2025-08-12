@@ -6,10 +6,9 @@
 //
 
 import XCTest
-@testable import AlmostOut
 
 @MainActor
-class AuthViewModelTests: XCTestCase {
+final class AuthViewModelTests: XCTestCase {
     var viewModel: AuthViewModel!
     var mockAuthService: MockAuthService!
     
