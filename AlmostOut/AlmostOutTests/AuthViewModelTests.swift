@@ -6,6 +6,7 @@
 //
 
 import XCTest
+@testable import AlmostOut
 
 @MainActor
 final class AuthViewModelTests: XCTestCase {
