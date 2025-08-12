@@ -6,7 +6,9 @@
 //
 
 import XCTest
+@testable import AlmostOut
 
+@MainActor
 class ListsViewModelTests: XCTestCase {
     var viewModel: ListsViewModel!
     var mockDatabaseService: MockDatabaseService!

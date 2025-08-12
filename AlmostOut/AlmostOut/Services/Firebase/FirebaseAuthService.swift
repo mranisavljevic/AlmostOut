@@ -28,7 +28,7 @@ class FirebaseAuthService: AuthServiceProtocol {
     }
     
     private func setupAuthListener() {
-        auth.addStateDidChangeListener { [weak self] _, firebaseUser in
+        _ = auth.addStateDidChangeListener { [weak self] _, firebaseUser in
             Task { @MainActor in
                 if let firebaseUser = firebaseUser {
                     do {

@@ -172,3 +172,17 @@ class FirestoreService: DatabaseServiceProtocol {
         // This would update the list members and delete the invitation
     }
 }
+
+enum FirestoreError: Error, LocalizedError {
+    case missingDocumentID
+    case invalidData
+    
+    var errorDescription: String? {
+        switch self {
+        case .missingDocumentID:
+            return "Document ID is missing"
+        case .invalidData:
+            return "Invalid data format"
+        }
+    }
+}

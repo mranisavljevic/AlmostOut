@@ -6,8 +6,6 @@
 //
 
 import SwiftUI
-//import Firebase
-//import FirebaseFirestore
 
 @MainActor
 class AddItemViewModel: ObservableObject {

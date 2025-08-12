@@ -5,6 +5,8 @@
 //  Created by Miles Ranisavljevic on 8/11/25.
 //
 
+import Combine
+import Foundation
 
 class MockDatabaseService: DatabaseServiceProtocol {
     private let listsSubject = CurrentValueSubject<[ShoppingList], Error>([])
