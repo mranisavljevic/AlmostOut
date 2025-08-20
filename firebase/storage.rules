@@ -1,0 +1,21 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Shopping list images
+    match /shopping-lists/{listId}/items/{itemId}/images/{imageId} {
+      allow read: if request.auth != null 
+        && request.auth.uid in firestore.get(/databases/(default)/documents/lists/$(listId)).data.members.keys();
+      
+      allow write: if request.auth != null 
+        && request.auth.uid in firestore.get(/databases/(default)/documents/lists/$(listId)).data.members.keys()
+        && (firestore.get(/databases/(default)/documents/lists/$(listId)).data.members[request.auth.uid].role == 'owner'
+            || firestore.get(/databases/(default)/documents/lists/$(listId)).data.members[request.auth.uid].role == 'editor')
+        && request.resource.size < 5 * 1024 * 1024;
+      
+      allow delete: if request.auth != null 
+        && request.auth.uid in firestore.get(/databases/(default)/documents/lists/$(listId)).data.members.keys()
+        && (firestore.get(/databases/(default)/documents/lists/$(listId)).data.members[request.auth.uid].role == 'owner'
+            || firestore.get(/databases/(default)/documents/lists/$(listId)).data.members[request.auth.uid].role == 'editor');
+    }
+  }
+}
