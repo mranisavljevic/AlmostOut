@@ -41,7 +41,7 @@ class ListsViewModel: ObservableObject {
                     }
                 },
                 receiveValue: { [weak self] lists in
-                    self?.lists = lists.sorted { $0.updatedAt > $1.updatedAt }
+                    self?.lists = lists // Already sorted by Firestore query
                 }
             )
             .store(in: &cancellables)
@@ -53,19 +53,20 @@ class ListsViewModel: ObservableObject {
         
         isLoading = true
         
+        let memberInfo = ShoppingList.ListMember(
+            role: .owner,
+            joinedAt: Date(),
+            displayName: displayName
+        )
+        
         let newList = ShoppingList(
             name: name,
             description: description,
             createdBy: userId,
             createdAt: Date(),
             updatedAt: Date(),
-            members: [
-                userId: ShoppingList.ListMember(
-                    role: .owner,
-                    joinedAt: Date(),
-                    displayName: displayName
-                )
-            ],
+            memberIds: [userId],  // Array instead of object
+            memberDetails: [userId: memberInfo],  // Details stored separately
             isArchived: false,
             totalItems: 0,
             completedItems: 0

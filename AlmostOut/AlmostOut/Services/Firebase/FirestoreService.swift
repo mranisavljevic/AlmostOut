@@ -15,34 +15,34 @@ class FirestoreService: DatabaseServiceProtocol {
     private var itemListeners: [String: ListenerRegistration] = [:]
     
     func observeLists(for userId: String) -> AnyPublisher<[ShoppingList], Error> {
-        let subject = PassthroughSubject<[ShoppingList], Error>()
-        
-        let listener = db.collection(FirebaseConstants.listsCollection)
-            .whereField("members.\(userId)", isNotEqualTo: NSNull())
-            .order(by: "updatedAt", descending: true)
-            .addSnapshotListener { snapshot, error in
-                if let error = error {
-                    subject.send(completion: .failure(error))
-                    return
+            let subject = PassthroughSubject<[ShoppingList], Error>()
+            
+            // Updated query using array-contains
+            let listener = db.collection(FirebaseConstants.listsCollection)
+                .whereField("memberIds", arrayContains: userId)
+                .order(by: "updatedAt", descending: true)
+                .addSnapshotListener { snapshot, error in
+                    if let error = error {
+                        subject.send(completion: .failure(error))
+                        return
+                    }
+                    
+                    guard let documents = snapshot?.documents else {
+                        subject.send([])
+                        return
+                    }
+                    
+                    do {
+                        let lists = try documents.compactMap { try $0.data(as: ShoppingList.self) }
+                        subject.send(lists)
+                    } catch {
+                        subject.send(completion: .failure(error))
+                    }
                 }
-                
-                guard let documents = snapshot?.documents else {
-                    subject.send([])
-                    return
-                }
-                
-                do {
-                    let lists = try documents.compactMap { try $0.data(as: ShoppingList.self) }
-                    subject.send(lists)
-                } catch {
-                    subject.send(completion: .failure(error))
-                }
-            }
-        
-        listListeners[userId] = listener
-        
-        return subject.eraseToAnyPublisher()
-    }
+            
+            listListeners[userId] = listener
+            return subject.eraseToAnyPublisher()
+        }
     
     func observeListItems(for listId: String) -> AnyPublisher<[ListItem], Error> {
         let subject = PassthroughSubject<[ListItem], Error>()
@@ -96,6 +96,28 @@ class FirestoreService: DatabaseServiceProtocol {
     func deleteList(id: String) async throws {
         let docRef = db.collection(FirebaseConstants.listsCollection).document(id)
         try await docRef.delete()
+    }
+    
+    func addMemberToList(userId: String, memberInfo: ShoppingList.ListMember, to listId: String) async throws {
+        let docRef = db.collection(FirebaseConstants.listsCollection).document(listId)
+        
+        try await docRef.updateData([
+            "memberIds": FieldValue.arrayUnion([userId]),
+            "memberDetails.\(userId)": [
+                "role": memberInfo.role.rawValue,
+                "joinedAt": memberInfo.joinedAt,
+                "displayName": memberInfo.displayName
+            ]
+        ])
+    }
+    
+    func removeMemberFromList(userId: String, from listId: String) async throws {
+        let docRef = db.collection(FirebaseConstants.listsCollection).document(listId)
+        
+        try await docRef.updateData([
+            "memberIds": FieldValue.arrayRemove([userId]),
+            "memberDetails.\(userId)": FieldValue.delete()
+        ])
     }
     
     func addItem(_ item: ListItem, to listId: String) async throws -> String {
