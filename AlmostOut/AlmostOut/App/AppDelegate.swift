@@ -6,6 +6,7 @@
 //
 
 import Firebase
+import FirebaseAppCheck
 import FirebaseAuth
 import Foundation
 
@@ -13,14 +14,18 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
         
+        /** We can add this AppAttest app check later
+        let providerFactory = AlmostOutAppCheckProviderFactory()
+        AppCheck.setAppCheckProviderFactory(providerFactory)
+        **/
+        
         // Configure Firebase
         FirebaseApp.configure()
         
         // Configure Firestore settings
         let db = Firestore.firestore()
         let settings = FirestoreSettings()
-        settings.isPersistenceEnabled = true // Enable offline persistence
-        settings.cacheSizeBytes = FirestoreCacheSizeUnlimited
+        settings.cacheSettings = PersistentCacheSettings(sizeBytes: FirestoreCacheSizeUnlimited as NSNumber)
         db.settings = settings
         
         // Configure push notifications
