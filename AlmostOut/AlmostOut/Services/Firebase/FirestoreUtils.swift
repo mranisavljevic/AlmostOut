@@ -23,7 +23,7 @@ extension Firestore {
         let firestore = Firestore.firestore()
         let settings = firestore.settings
         settings.host = "localhost:8080"
-        settings.isPersistenceEnabled = false
+        settings.cacheSettings = MemoryCacheSettings()
         settings.isSSLEnabled = false
         firestore.settings = settings
     }

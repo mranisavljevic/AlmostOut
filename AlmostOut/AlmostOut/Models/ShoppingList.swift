@@ -15,7 +15,8 @@ struct ShoppingList: Identifiable, Codable {
     let createdBy: String
     let createdAt: Date
     let updatedAt: Date
-    let members: [String: ListMember]
+    let memberIds: [String]  // Changed from members object to array
+    let memberDetails: [String: ListMember]  // Keep member details separate
     let isArchived: Bool
     let totalItems: Int
     let completedItems: Int
@@ -32,5 +33,18 @@ struct ShoppingList: Identifiable, Codable {
     
     var completionPercentage: Double {
         totalItems > 0 ? Double(completedItems) / Double(totalItems) : 0
+    }
+    
+    // Helper computed properties
+    var members: [String: ListMember] {
+        return memberDetails
+    }
+    
+    func userRole(for userId: String) -> ListMember.MemberRole? {
+        return memberDetails[userId]?.role
+    }
+    
+    func isUserMember(_ userId: String) -> Bool {
+        return memberIds.contains(userId)
     }
 }

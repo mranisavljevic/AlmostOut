@@ -23,7 +23,7 @@ class FirebaseStorageService: StorageServiceProtocol {
         let metadata = StorageMetadata()
         metadata.contentType = "image/jpeg"
         
-        let uploadTask = try await storageRef.putDataAsync(imageData, metadata: metadata)
+        _ = try await storageRef.putDataAsync(imageData, metadata: metadata)
         let downloadURL = try await storageRef.downloadURL()
         
         // Generate and upload thumbnail
@@ -32,7 +32,7 @@ class FirebaseStorageService: StorageServiceProtocol {
         
         // For now, we'll use the same image as thumbnail
         // In production, you'd want to resize it first
-        let thumbnailUploadTask = try await thumbnailRef.putDataAsync(imageData, metadata: metadata)
+        _ = try await thumbnailRef.putDataAsync(imageData, metadata: metadata)
         let thumbnailURL = try await thumbnailRef.downloadURL()
         
         return ItemImage(
