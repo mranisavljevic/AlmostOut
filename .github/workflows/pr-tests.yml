@@ -67,12 +67,11 @@ jobs:
 
     - name: Resolve Package Dependencies
       run: |
-        cd AlmostOut
-        xcodebuild -resolvePackageDependencies -scheme AlmostOut
+        xcodebuild -resolvePackageDependencies -scheme AlmostOut -project AlmostOut/AlmostOut.xcodeproj
 
     - name: Run Tests via Fastlane
+      working-directory: AlmostOut
       run: |
-        cd AlmostOut
         fastlane ci_test
       env:
         FASTLANE_SKIP_UPDATE_CHECK: true
@@ -147,8 +146,8 @@ jobs:
         brew install swiftlint || echo "SwiftLint installation failed, skipping..."
 
     - name: Run SwiftLint
+      working-directory: AlmostOut  
       run: |
-        cd AlmostOut
         if command -v swiftlint >/dev/null 2>&1; then
           swiftlint lint --reporter github-actions-logging
         else
