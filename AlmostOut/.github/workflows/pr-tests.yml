@@ -1,0 +1,193 @@
+name: PR Tests
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths-ignore:
+      - '**/*.md'
+      - '.gitignore'
+      - 'LICENSE'
+      - 'firebase/**'
+      - '*.md'
+
+  # Allow manual triggering
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+
+    - name: Cache Swift Package Manager
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/Library/Caches/org.swift.swiftpm/
+          ~/.cache/org.swift.swiftpm/
+          AlmostOut.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+        key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
+        restore-keys: |
+          ${{ runner.os }}-spm-
+
+    - name: Cache DerivedData
+      uses: actions/cache@v3
+      with:
+        path: ~/Library/Developer/Xcode/DerivedData
+        key: ${{ runner.os }}-derived-data-${{ hashFiles('**/*.swift', '**/*.m', '**/*.h') }}
+        restore-keys: |
+          ${{ runner.os }}-derived-data-
+
+    - name: Install Fastlane
+      run: |
+        # Install fastlane using bundler if Gemfile exists, otherwise use gem
+        if [ -f "Gemfile" ]; then
+          bundle install
+        else
+          sudo gem install fastlane
+        fi
+
+    - name: Resolve Package Dependencies
+      run: |
+        cd AlmostOut
+        xcodebuild -resolvePackageDependencies -scheme AlmostOut
+
+    - name: Run Tests via Fastlane
+      run: |
+        cd AlmostOut
+        fastlane ci_test
+      env:
+        FASTLANE_SKIP_UPDATE_CHECK: true
+        FASTLANE_HIDE_CHANGELOG: true
+
+    - name: Upload Test Results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-results
+        path: |
+          AlmostOut/test_output/
+          AlmostOut/logs/
+        retention-days: 30
+
+    - name: Upload Coverage Reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: coverage-reports
+        path: AlmostOut/test_output/*.xcresult
+        retention-days: 30
+
+    - name: Comment PR with Test Results
+      uses: actions/github-script@v6
+      if: always() && github.event_name == 'pull_request'
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          
+          // This is a simple example - in a real setup you'd parse the test results
+          const conclusion = '${{ job.status }}';
+          const emoji = conclusion === 'success' ? '✅' : '❌';
+          const status = conclusion === 'success' ? 'passed' : 'failed';
+          
+          const body = `## ${emoji} Test Results
+          
+          Tests have **${status}** for this PR.
+          
+          - **Status**: ${conclusion}
+          - **Workflow**: [${context.workflow}](${context.payload.pull_request.html_url}/checks)
+          - **Commit**: ${context.sha.substring(0, 7)}
+          
+          ${conclusion === 'success' 
+            ? '🎉 All tests are passing! This PR is ready for review.' 
+            : '⚠️ Some tests failed. Please check the logs and fix the issues before merging.'
+          }`;
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: body
+          });
+
+  lint:
+    name: Code Linting
+    runs-on: macos-latest
+    timeout-minutes: 10
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Swift
+      uses: swift-actions/setup-swift@v1
+
+    - name: Install SwiftLint
+      run: |
+        # Try to install SwiftLint, but don't fail if it's not available
+        brew install swiftlint || echo "SwiftLint installation failed, skipping..."
+
+    - name: Run SwiftLint
+      run: |
+        cd AlmostOut
+        if command -v swiftlint >/dev/null 2>&1; then
+          swiftlint lint --reporter github-actions-logging
+        else
+          echo "SwiftLint not available, skipping linting step"
+        fi
+      continue-on-error: true
+
+  # This job ensures both test and lint jobs complete
+  check:
+    name: All Checks Complete
+    runs-on: ubuntu-latest
+    needs: [test, lint]
+    if: always()
+
+    steps:
+    - name: Check test results
+      run: |
+        if [[ "${{ needs.test.result }}" != "success" ]]; then
+          echo "❌ Tests failed"
+          exit 1
+        fi
+        echo "✅ All checks passed"
+
+    - name: Update commit status
+      uses: actions/github-script@v6
+      if: always()
+      with:
+        script: |
+          const conclusion = '${{ needs.test.result }}' === 'success' ? 'success' : 'failure';
+          const description = conclusion === 'success' 
+            ? 'All tests passed' 
+            : 'Tests failed - check logs for details';
+          
+          github.rest.repos.createCommitStatus({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            sha: context.sha,
+            state: conclusion,
+            target_url: `${context.payload.pull_request.html_url}/checks`,
+            description: description,
+            context: 'ci/tests'
+          });
