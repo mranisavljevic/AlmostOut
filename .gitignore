@@ -10,4 +10,7 @@ DerivedData/
 GoogleService-Info.plist
 
 # API Keys (create a separate config file)
-Config.plist.claude/
+Config.plist
+
+# Claude Code local settings
+.claude/
