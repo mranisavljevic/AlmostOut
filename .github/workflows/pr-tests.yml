@@ -43,7 +43,7 @@ jobs:
         path: |
           ~/Library/Caches/org.swift.swiftpm/
           ~/.cache/org.swift.swiftpm/
-          AlmostOut.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+          AlmostOut/AlmostOut.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
         key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
         restore-keys: |
           ${{ runner.os }}-spm-
