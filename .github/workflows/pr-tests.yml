@@ -70,7 +70,6 @@ jobs:
         xcodebuild -resolvePackageDependencies -scheme AlmostOut -project AlmostOut/AlmostOut.xcodeproj
 
     - name: Run Tests via Fastlane
-      working-directory: AlmostOut
       run: |
         fastlane ci_test
       env:

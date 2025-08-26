@@ -19,6 +19,7 @@ platform :ios do
   desc "Run tests"
   lane :test do
     run_tests(
+      project: "AlmostOut/AlmostOut.xcodeproj",
       scheme: "AlmostOut",
       device: "iPhone 16",
       skip_testing: [
@@ -33,6 +34,7 @@ platform :ios do
   desc "Run tests for CI"
   lane :ci_test do
     run_tests(
+      project: "AlmostOut/AlmostOut.xcodeproj",
       scheme: "AlmostOut",
       device: "iPhone 16",
       skip_testing: [
@@ -50,6 +52,7 @@ platform :ios do
   desc "Build for testing"
   lane :build_for_testing do
     build_app(
+      project: "AlmostOut/AlmostOut.xcodeproj",
       scheme: "AlmostOut",
       configuration: "Debug",
       skip_archive: true,
