@@ -12,6 +12,7 @@ struct ListDetailView: View {
     @StateObject private var viewModel: ListDetailViewModel
     @State private var showingAddItem = false
     @State private var showingFilters = false
+    @State private var editingItem: ListItem?
     
     init(listId: String) {
         self.listId = listId
@@ -27,11 +28,13 @@ struct ListDetailView: View {
             } else {
                 List {
                     ForEach(viewModel.filteredItems) { item in
-                        ItemRowView(item: item) {
+                        ItemRowView(item: item, onToggleComplete: {
                             Task {
                                 await viewModel.toggleItemCompletion(item)
                             }
-                        }
+                        }, onEdit: {
+                            editingItem = item
+                        })
                     }
                     .onDelete(perform: deleteItems)
                 }
@@ -59,6 +62,9 @@ struct ListDetailView: View {
         }
         .sheet(isPresented: $showingFilters) {
             FilterView(viewModel: viewModel)
+        }
+        .sheet(item: $editingItem) { item in
+            EditItemView(listId: listId, item: item)
         }
         .searchable(text: $viewModel.searchText, prompt: "Search items...")
     }
