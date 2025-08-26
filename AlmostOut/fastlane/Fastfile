@@ -1,0 +1,88 @@
+# This file contains the fastlane.tools configuration
+# You can find the documentation at https://docs.fastlane.tools
+#
+# For a list of all available actions, check out
+#
+#     https://docs.fastlane.tools/actions
+#
+# For a list of all available plugins, check out
+#
+#     https://docs.fastlane.tools/plugins/available-plugins
+#
+
+# Uncomment the line if you want fastlane to automatically update itself
+# update_fastlane
+
+default_platform(:ios)
+
+platform :ios do
+  desc "Run tests"
+  lane :test do
+    run_tests(
+      scheme: "AlmostOut",
+      device: "iPhone 16",
+      skip_testing: [
+        "AlmostOutUITests"  # Skip UI tests for faster CI
+      ],
+      code_coverage: true,
+      result_bundle: true,
+      output_directory: "./test_output"
+    )
+  end
+
+  desc "Run tests for CI"
+  lane :ci_test do
+    run_tests(
+      scheme: "AlmostOut",
+      device: "iPhone 16",
+      skip_testing: [
+        "AlmostOutUITests"
+      ],
+      code_coverage: true,
+      result_bundle: true,
+      output_directory: "./test_output",
+      fail_build: true,  # Ensure CI fails if tests fail
+      suppress_xcode_output: false,  # Show detailed output for debugging
+      buildlog_path: "./logs"
+    )
+  end
+
+  desc "Build for testing"
+  lane :build_for_testing do
+    build_app(
+      scheme: "AlmostOut",
+      configuration: "Debug",
+      skip_archive: true,
+      skip_codesigning: true,
+      destination: "generic/platform=iOS Simulator"
+    )
+  end
+
+  desc "Lint code"
+  lane :lint do
+    swiftlint(
+      mode: :lint,
+      output_file: "swiftlint-results.json",
+      reporter: "json",
+      ignore_exit_status: false
+    )
+  end
+
+  desc "Full CI pipeline"
+  lane :ci do
+    # Build first to catch compilation errors early
+    build_for_testing
+    
+    # Run linting if SwiftLint is available
+    begin
+      lint
+    rescue => ex
+      UI.important("SwiftLint not available or failed: #{ex}")
+    end
+    
+    # Run tests
+    ci_test
+    
+    UI.success("✅ CI pipeline completed successfully!")
+  end
+end

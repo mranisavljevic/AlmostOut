@@ -1,0 +1,89 @@
+name: Setup Branch Protection
+
+# This workflow sets up branch protection rules for the main branch
+# It should be run once when CI is first set up, or when protection rules need to be updated
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to protect'
+        required: true
+        default: 'main'
+        type: string
+
+jobs:
+  setup-protection:
+    name: Configure Branch Protection
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Setup Branch Protection Rules
+      uses: actions/github-script@v6
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const branch = '${{ github.event.inputs.branch || 'main' }}';
+          
+          try {
+            const protection = await github.rest.repos.updateBranchProtection({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              branch: branch,
+              required_status_checks: {
+                strict: true,
+                checks: [
+                  {
+                    context: 'ci/tests',
+                    app_id: -1  // GitHub Actions app
+                  },
+                  {
+                    context: 'All Checks Complete',
+                    app_id: -1
+                  }
+                ]
+              },
+              enforce_admins: false,  // Allow admins to bypass in emergencies
+              required_pull_request_reviews: {
+                required_approving_review_count: 1,
+                dismiss_stale_reviews: true,
+                require_code_owner_reviews: false,
+                require_last_push_approval: false
+              },
+              restrictions: null,  // No user/team restrictions
+              allow_deletions: false,
+              allow_force_pushes: false,
+              block_creations: false
+            });
+            
+            console.log(`✅ Branch protection rules successfully applied to ${branch}`);
+            console.log('Protection details:', protection.data);
+            
+          } catch (error) {
+            console.error(`❌ Failed to set branch protection for ${branch}:`, error);
+            
+            // Provide helpful error messages
+            if (error.status === 403) {
+              console.error('❌ Insufficient permissions. Make sure the GITHUB_TOKEN has admin rights to the repository.');
+            } else if (error.status === 404) {
+              console.error(`❌ Branch '${branch}' not found. Make sure the branch exists.`);
+            }
+            
+            throw error;
+          }
+
+    - name: Summary
+      run: |
+        echo "## 🔒 Branch Protection Setup Complete!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "The following protection rules have been applied to the **${{ github.event.inputs.branch || 'main' }}** branch:" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "✅ **Required status checks**: Tests must pass before merging" >> $GITHUB_STEP_SUMMARY
+        echo "✅ **Required PR reviews**: At least 1 approving review required" >> $GITHUB_STEP_SUMMARY
+        echo "✅ **Dismiss stale reviews**: New commits dismiss previous approvals" >> $GITHUB_STEP_SUMMARY
+        echo "✅ **No force pushes**: Direct force pushes to main are blocked" >> $GITHUB_STEP_SUMMARY
+        echo "✅ **No deletions**: Branch cannot be deleted" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Required Checks:" >> $GITHUB_STEP_SUMMARY
+        echo "- `ci/tests` - All unit tests must pass" >> $GITHUB_STEP_SUMMARY
+        echo "- `All Checks Complete` - Full CI pipeline completion" >> $GITHUB_STEP_SUMMARY
