@@ -2,6 +2,8 @@
 *.xcodeproj/
 !*.xcodeproj/project.pbxproj
 !*.xcodeproj/xcshareddata/
+!*.xcodeproj/project.xcworkspace/
+!*.xcodeproj/project.xcworkspace/contents.xcworkspacedata
 *.xcworkspace/
 DerivedData/
 .build/
