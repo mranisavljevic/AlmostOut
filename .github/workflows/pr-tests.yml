@@ -75,6 +75,8 @@ jobs:
       env:
         FASTLANE_SKIP_UPDATE_CHECK: true
         FASTLANE_HIDE_CHANGELOG: true
+        FASTLANE_XCODEBUILD_SETTINGS_TIMEOUT: 120
+        FASTLANE_XCODEBUILD_SETTINGS_RETRIES: 2
 
     - name: Upload Test Results
       uses: actions/upload-artifact@v4
