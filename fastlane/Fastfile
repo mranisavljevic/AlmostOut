@@ -57,7 +57,7 @@ platform :ios do
       configuration: "Debug",
       skip_archive: true,
       skip_codesigning: true,
-      destination: "platform=iOS Simulator,name=iPhone 16 Pro,OS=18.4"
+      destination: "generic/platform=iOS Simulator"
     )
   end
 
