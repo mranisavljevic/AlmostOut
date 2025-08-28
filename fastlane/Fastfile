@@ -21,7 +21,6 @@ platform :ios do
     run_tests(
       project: "AlmostOut/AlmostOut.xcodeproj",
       scheme: "AlmostOut",
-      destination: "platform=iOS Simulator,name=iPhone 15 Pro",
       skip_testing: [
         "AlmostOutUITests"  # Skip UI tests for faster CI
       ],
@@ -36,7 +35,6 @@ platform :ios do
     run_tests(
       project: "AlmostOut/AlmostOut.xcodeproj",
       scheme: "AlmostOut",
-      destination: "platform=iOS Simulator,name=iPhone 15 Pro",
       skip_testing: [
         "AlmostOutUITests"
       ],
