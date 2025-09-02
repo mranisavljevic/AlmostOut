@@ -2,12 +2,17 @@
 *.xcodeproj/
 !*.xcodeproj/project.pbxproj
 !*.xcodeproj/xcshareddata/
+!*.xcodeproj/project.xcworkspace/
+!*.xcodeproj/project.xcworkspace/contents.xcworkspacedata
 *.xcworkspace/
 DerivedData/
 .build/
 
 # Firebase
-GoogleService-Info.plist
+AlmostOut/AlmostOut/GoogleService-Info.plist
 
 # API Keys (create a separate config file)
 Config.plist
+
+# Claude Code local settings
+.claude/
