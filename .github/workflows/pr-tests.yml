@@ -65,6 +65,10 @@ jobs:
           sudo gem install fastlane
         fi
 
+    - name: Create GoogleService-Info.plist
+      run: |
+        echo '${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}' > AlmostOut/AlmostOut/GoogleService-Info.plist
+
     - name: Resolve Package Dependencies
       run: |
         xcodebuild -resolvePackageDependencies -scheme AlmostOut -project AlmostOut/AlmostOut.xcodeproj
