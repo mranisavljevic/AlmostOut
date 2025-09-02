@@ -21,6 +21,7 @@ permissions:
   contents: read
   issues: write
   pull-requests: write
+  statuses: write
 
 env:
   DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
