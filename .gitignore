@@ -9,7 +9,7 @@ DerivedData/
 .build/
 
 # Firebase
-GoogleService-Info.plist
+**/GoogleService-Info.plist
 
 # API Keys (create a separate config file)
 Config.plist
