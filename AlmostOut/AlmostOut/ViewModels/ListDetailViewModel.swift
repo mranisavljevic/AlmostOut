@@ -46,8 +46,25 @@ class ListDetailViewModel: ObservableObject {
         self.listId = listId
         self.databaseService = databaseService
         self.authService = authService
+        setupListObserver()
         setupItemsObserver()
         setupFiltering()
+    }
+    
+    private func setupListObserver() {
+        databaseService.observeList(id: listId)
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { [weak self] completion in
+                    if case .failure(let error) = completion {
+                        self?.errorMessage = error.localizedDescription
+                    }
+                },
+                receiveValue: { [weak self] list in
+                    self?.list = list
+                }
+            )
+            .store(in: &cancellables)
     }
     
     private func setupItemsObserver() {
@@ -138,6 +155,9 @@ class ListDetailViewModel: ObservableObject {
             addedByName: item.addedByName,
             createdAt: item.createdAt,
             updatedAt: Date(),
+            lastEditedBy: userId,
+            lastEditedByName: displayName,
+            lastEditedAt: Date(),
             isCompleted: !item.isCompleted,
             completedBy: !item.isCompleted ? userId : nil,
             completedByName: !item.isCompleted ? displayName : nil,

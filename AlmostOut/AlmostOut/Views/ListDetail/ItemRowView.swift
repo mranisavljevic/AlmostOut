@@ -61,6 +61,15 @@ struct ItemRowView: View {
                             .foregroundColor(.blue)
                     }
                 }
+                
+                // User attribution info
+                HStack {
+                    Text(userAttributionText)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    
+                    Spacer()
+                }
             }
             
             Spacer()
@@ -72,6 +81,20 @@ struct ItemRowView: View {
             }
             .tint(.blue)
         }
+    }
+    
+    private var userAttributionText: String {
+        if item.isCompleted {
+            if let completedByName = item.completedByName {
+                return "Completed by \(completedByName)"
+            }
+        }
+        
+        if item.hasBeenEdited {
+            return "Last edited by \(item.lastModifiedByUser)"
+        }
+        
+        return "Added by \(item.addedByName)"
     }
     
     private func priorityIcon(_ priority: ListItem.Priority) -> String {

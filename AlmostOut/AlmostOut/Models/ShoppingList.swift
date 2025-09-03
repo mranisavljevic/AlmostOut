@@ -20,6 +20,7 @@ struct ShoppingList: Identifiable, Codable {
     let isArchived: Bool
     let totalItems: Int
     let completedItems: Int
+    let shareSettings: ShareSettings
     
     struct ListMember: Codable {
         let role: MemberRole
@@ -28,6 +29,37 @@ struct ShoppingList: Identifiable, Codable {
         
         enum MemberRole: String, Codable, CaseIterable {
             case owner, editor, viewer
+            
+            var displayName: String {
+                switch self {
+                case .owner: return "Owner"
+                case .editor: return "Editor"
+                case .viewer: return "Viewer"
+                }
+            }
+            
+            var canEdit: Bool {
+                switch self {
+                case .owner, .editor: return true
+                case .viewer: return false
+                }
+            }
+            
+            var canManageMembers: Bool {
+                return self == .owner
+            }
+        }
+    }
+    
+    struct ShareSettings: Codable {
+        let allowSharing: Bool
+        let maxMembers: Int?
+        let createdAt: Date
+        
+        init(allowSharing: Bool = true, maxMembers: Int? = nil) {
+            self.allowSharing = allowSharing
+            self.maxMembers = maxMembers
+            self.createdAt = Date()
         }
     }
     
@@ -46,5 +78,23 @@ struct ShoppingList: Identifiable, Codable {
     
     func isUserMember(_ userId: String) -> Bool {
         return memberIds.contains(userId)
+    }
+    
+    func isUserOwner(_ userId: String) -> Bool {
+        return createdBy == userId || memberDetails[userId]?.role == .owner
+    }
+    
+    func canUserEdit(_ userId: String) -> Bool {
+        guard let role = memberDetails[userId]?.role else { return false }
+        return role.canEdit
+    }
+    
+    func canUserManageMembers(_ userId: String) -> Bool {
+        guard let role = memberDetails[userId]?.role else { return false }
+        return role.canManageMembers
+    }
+    
+    var canCreateShareLinks: Bool {
+        return shareSettings.allowSharing
     }
 }

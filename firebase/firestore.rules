@@ -7,17 +7,23 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     
-    // Lists - users can only access lists they're members of
+    // Lists - users can only access lists they're members of, with share code support
     match /lists/{listId} {
       allow read: if request.auth != null 
-        && request.auth.uid in resource.data.memberIds;
+        && (request.auth.uid in resource.data.memberIds
+            || (resource.data.shareSettings.isPubliclyShareable == true
+                && resource.data.shareSettings.allowJoinViaLink == true));
       
-      allow create: if request.auth != null;
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.createdBy;
       
       allow update: if request.auth != null 
         && request.auth.uid in resource.data.memberIds
         && (resource.data.memberDetails[request.auth.uid].role == 'owner' 
-            || resource.data.memberDetails[request.auth.uid].role == 'editor');
+            || resource.data.memberDetails[request.auth.uid].role == 'editor'
+            || (request.resource.data.keys().hasOnly(['memberIds', 'memberDetails', 'updatedAt']) 
+                && request.auth.uid in request.resource.data.memberIds
+                && !(request.auth.uid in resource.data.memberIds)));
       
       allow delete: if request.auth != null 
         && request.auth.uid in resource.data.memberIds
@@ -61,16 +67,33 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     
-    // Invitations
+    // Invitations - enhanced rules for new invitation system
     match /invitations/{invitationId} {
       allow read: if request.auth != null 
         && (request.auth.uid == resource.data.invitedBy 
-            || request.auth.email == resource.data.invitedEmail);
+            || request.auth.email == resource.data.invitedEmail
+            || request.auth.uid == resource.data.invitedUserId);
       
-      allow create: if request.auth != null;
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.invitedBy
+        && request.auth.uid in get(/databases/$(database)/documents/lists/$(request.resource.data.listId)).data.memberIds
+        && (get(/databases/$(database)/documents/lists/$(request.resource.data.listId)).data.memberDetails[request.auth.uid].role == 'owner'
+            || get(/databases/$(database)/documents/lists/$(request.resource.data.listId)).data.memberDetails[request.auth.uid].role == 'editor');
       
       allow update: if request.auth != null 
-        && request.auth.email == resource.data.invitedEmail;
+        && (request.auth.email == resource.data.invitedEmail
+            || request.auth.uid == resource.data.invitedUserId
+            || request.auth.uid == resource.data.invitedBy)
+        && (resource.data.status == 'pending' || request.auth.uid == resource.data.invitedBy);
+      
+      allow delete: if request.auth != null
+        && request.auth.uid == resource.data.invitedBy;
+    }
+    
+    // Share code validation - special collection for public share codes
+    match /public_lists/{shareCode} {
+      allow read: if true; // Public read access for share code validation
+      allow write: if false; // Only Cloud Functions can write
     }
   }
 }

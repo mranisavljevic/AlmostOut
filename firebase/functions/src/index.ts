@@ -324,6 +324,138 @@ export const logActivity = functions.firestore
     }
   });
 
+// Send invitation notification
+export const onInvitationCreated = functions.firestore
+  .document("invitations/{invitationId}")
+  .onCreate(async (snap, context): Promise<void> => {
+    const invitation = snap.data() as InvitationData;
+    
+    try {
+      // If this is an email invitation, we could send an email here
+      // For now, we'll just send a push notification if the user exists
+      
+      if (invitation.invitedEmail) {
+        // Try to find user by email to send push notification
+        const userQuery = await db.collection("users")
+          .where("email", "==", invitation.invitedEmail)
+          .limit(1)
+          .get();
+        
+        if (!userQuery.empty) {
+          const userDoc = userQuery.docs[0];
+          const userData = userDoc.data() as UserData;
+          
+          if (userData.fcmTokens && userData.preferences?.pushNotifications !== false) {
+            const message: admin.messaging.MulticastMessage = {
+              notification: {
+                title: "New List Invitation",
+                body: `${invitation.invitedByName} invited you to join "${invitation.listName}"`,
+              },
+              data: {
+                invitationId: snap.id,
+                listId: invitation.listId,
+                type: "invitation_received",
+              },
+              tokens: userData.fcmTokens,
+            };
+            
+            const response = await messaging.sendMulticast(message);
+            functions.logger.info(`Sent invitation notification. Success: ${response.successCount}, Failure: ${response.failureCount}`);
+          }
+        }
+      }
+    } catch (error) {
+      functions.logger.error("Error sending invitation notification:", error);
+    }
+  });
+
+// Process share link joins
+export const joinListViaShareCode = functions.https.onCall(async (data, context): Promise<{ success: boolean; listId: string }> => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError("unauthenticated", "User must be authenticated");
+  }
+  
+  const { shareCode } = data as { shareCode: string };
+  
+  if (!shareCode) {
+    throw new functions.https.HttpsError("invalid-argument", "Share code is required");
+  }
+  
+  const userId = context.auth.uid;
+  const userEmail = context.auth.token.email;
+  
+  if (!userEmail) {
+    throw new functions.https.HttpsError("failed-precondition", "User email is required");
+  }
+  
+  try {
+    // Find list with matching share code
+    const listQuery = await db.collection("lists")
+      .where("shareSettings.shareCode", "==", shareCode)
+      .where("shareSettings.isPubliclyShareable", "==", true)
+      .where("shareSettings.allowJoinViaLink", "==", true)
+      .limit(1)
+      .get();
+    
+    if (listQuery.empty) {
+      throw new functions.https.HttpsError("not-found", "Invalid or expired share code");
+    }
+    
+    const listDoc = listQuery.docs[0];
+    const listData = listDoc.data();
+    
+    // Check if user is already a member
+    if (listData.memberIds && listData.memberIds.includes(userId)) {
+      throw new functions.https.HttpsError("already-exists", "You are already a member of this list");
+    }
+    
+    // Check member limit if set
+    if (listData.shareSettings?.maxMembers && 
+        listData.memberIds?.length >= listData.shareSettings.maxMembers) {
+      throw new functions.https.HttpsError("failed-precondition", "This list has reached its maximum number of members");
+    }
+    
+    // Get user display name
+    const userDoc = await db.collection("users").doc(userId).get();
+    const userData = userDoc.data() as UserData | undefined;
+    const displayName = userData?.displayName || userEmail;
+    
+    // Add user to list
+    await db.collection("lists").doc(listDoc.id).update({
+      memberIds: admin.firestore.FieldValue.arrayUnion(userId),
+      [`memberDetails.${userId}`]: {
+        role: "editor", // Default role for share link joins
+        joinedAt: admin.firestore.FieldValue.serverTimestamp(),
+        displayName: displayName,
+      },
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    
+    // Log activity
+    await db.collection("lists")
+      .doc(listDoc.id)
+      .collection("activity")
+      .add({
+        type: "member_joined_via_link",
+        userId: userId,
+        userName: displayName,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        details: {
+          shareCode: shareCode,
+        },
+      });
+    
+    functions.logger.info(`User ${userId} joined list ${listDoc.id} via share code ${shareCode}`);
+    return { success: true, listId: listDoc.id };
+  } catch (error) {
+    functions.logger.error("Error joining list via share code:", error);
+    if (error instanceof functions.https.HttpsError) {
+      throw error;
+    }
+    throw new functions.https.HttpsError("internal", "An unexpected error occurred");
+  }
+});
+
 // Accept invitation function
 export const acceptInvitation = functions.https.onCall(async (data, context): Promise<{ success: boolean }> => {
   if (!context.auth) {
@@ -371,14 +503,16 @@ export const acceptInvitation = functions.https.onCall(async (data, context): Pr
     
     // Run transaction to ensure consistency
     await db.runTransaction(async (transaction) => {
-      // Add user to list members
+      // Add user to list members using the new structure
       const listRef = db.collection("lists").doc(invitation.listId);
       transaction.update(listRef, {
-        [`members.${userId}`]: {
+        memberIds: admin.firestore.FieldValue.arrayUnion(userId),
+        [`memberDetails.${userId}`]: {
           role: invitation.role,
           joinedAt: admin.firestore.FieldValue.serverTimestamp(),
           displayName: displayName,
         },
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
       
       // Update invitation status
@@ -394,6 +528,60 @@ export const acceptInvitation = functions.https.onCall(async (data, context): Pr
     return { success: true };
   } catch (error) {
     functions.logger.error("Error accepting invitation:", error);
+    if (error instanceof functions.https.HttpsError) {
+      throw error;
+    }
+    throw new functions.https.HttpsError("internal", "An unexpected error occurred");
+  }
+});
+
+// Decline invitation function
+export const declineInvitation = functions.https.onCall(async (data, context): Promise<{ success: boolean }> => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError("unauthenticated", "User must be authenticated");
+  }
+  
+  const { invitationId } = data as { invitationId: string };
+  
+  if (!invitationId) {
+    throw new functions.https.HttpsError("invalid-argument", "Invitation ID is required");
+  }
+  
+  const userId = context.auth.uid;
+  const userEmail = context.auth.token.email;
+  
+  if (!userEmail) {
+    throw new functions.https.HttpsError("failed-precondition", "User email is required");
+  }
+  
+  try {
+    const invitationDoc = await db.collection("invitations").doc(invitationId).get();
+    
+    if (!invitationDoc.exists) {
+      throw new functions.https.HttpsError("not-found", "Invitation not found");
+    }
+    
+    const invitation = invitationDoc.data() as InvitationData;
+    
+    if (invitation.invitedEmail !== userEmail) {
+      throw new functions.https.HttpsError("permission-denied", "Invitation not for this email");
+    }
+    
+    if (invitation.status !== "pending") {
+      throw new functions.https.HttpsError("failed-precondition", "Invitation already processed");
+    }
+    
+    // Update invitation status
+    await db.collection("invitations").doc(invitationId).update({
+      status: "declined",
+      declinedAt: admin.firestore.FieldValue.serverTimestamp(),
+      declinedBy: userId,
+    });
+    
+    functions.logger.info(`User ${userId} declined invitation ${invitationId} for list ${invitation.listId}`);
+    return { success: true };
+  } catch (error) {
+    functions.logger.error("Error declining invitation:", error);
     if (error instanceof functions.https.HttpsError) {
       throw error;
     }

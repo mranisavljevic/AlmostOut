@@ -19,6 +19,9 @@ struct ListItem: Identifiable, Codable {
     let addedByName: String
     let createdAt: Date
     let updatedAt: Date
+    let lastEditedBy: String?
+    let lastEditedByName: String?
+    let lastEditedAt: Date?
     let isCompleted: Bool
     let completedBy: String?
     let completedByName: String?
@@ -48,5 +51,22 @@ struct ListItem: Identifiable, Codable {
             case .low: return 3
             }
         }
+    }
+}
+
+extension ListItem {
+    var lastModifiedByUser: String {
+        if let lastEditedByName = lastEditedByName {
+            return lastEditedByName
+        }
+        return addedByName
+    }
+    
+    var lastModificationDate: Date {
+        return lastEditedAt ?? createdAt
+    }
+    
+    var hasBeenEdited: Bool {
+        return lastEditedBy != nil && lastEditedBy != addedBy
     }
 }

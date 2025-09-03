@@ -13,6 +13,7 @@ struct ListDetailView: View {
     @State private var showingAddItem = false
     @State private var showingFilters = false
     @State private var editingItem: ListItem?
+    @State private var showingShareView = false
     
     init(listId: String) {
         self.listId = listId
@@ -44,6 +45,14 @@ struct ListDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
+                if let list = viewModel.list, list.canCreateShareLinks {
+                    Button {
+                        showingShareView = true
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                }
+                
                 Button {
                     showingFilters = true
                 } label: {
@@ -65,6 +74,11 @@ struct ListDetailView: View {
         }
         .sheet(item: $editingItem) { item in
             EditItemView(listId: listId, item: item)
+        }
+        .sheet(isPresented: $showingShareView) {
+            if let list = viewModel.list {
+                ShareListView(list: list)
+            }
         }
         .searchable(text: $viewModel.searchText, prompt: "Search items...")
     }

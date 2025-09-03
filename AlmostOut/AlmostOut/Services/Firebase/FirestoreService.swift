@@ -14,6 +14,33 @@ class FirestoreService: DatabaseServiceProtocol {
     private var listListeners: [String: ListenerRegistration] = [:]
     private var itemListeners: [String: ListenerRegistration] = [:]
     
+    func observeList(id: String) -> AnyPublisher<ShoppingList?, Error> {
+        let subject = PassthroughSubject<ShoppingList?, Error>()
+        
+        let listener = db.collection(FirebaseConstants.listsCollection)
+            .document(id)
+            .addSnapshotListener { snapshot, error in
+                if let error = error {
+                    subject.send(completion: .failure(error))
+                    return
+                }
+                
+                guard let document = snapshot, document.exists else {
+                    subject.send(nil)
+                    return
+                }
+                
+                do {
+                    let list = try document.data(as: ShoppingList.self)
+                    subject.send(list)
+                } catch {
+                    subject.send(completion: .failure(error))
+                }
+            }
+        
+        return subject.eraseToAnyPublisher()
+    }
+    
     func observeLists(for userId: String) -> AnyPublisher<[ShoppingList], Error> {
             let subject = PassthroughSubject<[ShoppingList], Error>()
             
@@ -184,14 +211,110 @@ class FirestoreService: DatabaseServiceProtocol {
         ])
     }
     
-    func inviteUser(email: String, to listId: String, role: ShoppingList.ListMember.MemberRole) async throws {
-        // Implementation for user invitations
-        // This would create an invitation document and send notification
+    func createInvitation(_ invite: ListInvite) async throws -> String {
+        let docRef = db.collection(FirebaseConstants.invitationsCollection).document()
+        var newInvite = invite
+        newInvite.id = docRef.documentID
+        
+        try docRef.setData(from: newInvite)
+        return docRef.documentID
     }
     
-    func acceptInvitation(id: String) async throws {
-        // Implementation for accepting invitations
-        // This would update the list members and delete the invitation
+    func observeIncomingInvitations(for userId: String, userEmail: String) -> AnyPublisher<[ListInvite], Error> {
+        let subject = PassthroughSubject<[ListInvite], Error>()
+        
+        let listener = db.collection(FirebaseConstants.invitationsCollection)
+            .whereField("status", isEqualTo: ListInvite.InviteStatus.pending.rawValue)
+            .whereFilter(Filter.orFilter([
+                Filter.whereField("invitedUserId", isEqualTo: userId),
+                Filter.whereField("invitedEmail", isEqualTo: userEmail)
+            ]))
+            .order(by: "createdAt", descending: true)
+            .addSnapshotListener { snapshot, error in
+                if let error = error {
+                    subject.send(completion: .failure(error))
+                    return
+                }
+                
+                guard let documents = snapshot?.documents else {
+                    subject.send([])
+                    return
+                }
+                
+                do {
+                    let invites = try documents.compactMap { try $0.data(as: ListInvite.self) }
+                    subject.send(invites)
+                } catch {
+                    subject.send(completion: .failure(error))
+                }
+            }
+        
+        return subject.eraseToAnyPublisher()
+    }
+    
+    func observeOutgoingInvitations(for userId: String) -> AnyPublisher<[ListInvite], Error> {
+        let subject = PassthroughSubject<[ListInvite], Error>()
+        
+        let listener = db.collection(FirebaseConstants.invitationsCollection)
+            .whereField("invitedBy", isEqualTo: userId)
+            .order(by: "createdAt", descending: true)
+            .addSnapshotListener { snapshot, error in
+                if let error = error {
+                    subject.send(completion: .failure(error))
+                    return
+                }
+                
+                guard let documents = snapshot?.documents else {
+                    subject.send([])
+                    return
+                }
+                
+                do {
+                    let invites = try documents.compactMap { try $0.data(as: ListInvite.self) }
+                    subject.send(invites)
+                } catch {
+                    subject.send(completion: .failure(error))
+                }
+            }
+        
+        return subject.eraseToAnyPublisher()
+    }
+    
+    func updateInvitation(_ invite: ListInvite) async throws {
+        guard let inviteId = invite.id else {
+            throw FirestoreError.missingDocumentID
+        }
+        
+        let docRef = db.collection(FirebaseConstants.invitationsCollection).document(inviteId)
+        try docRef.setData(from: invite, merge: true)
+    }
+    
+    func findListByShareCode(_ shareCode: String) async throws -> ShoppingList? {
+        let snapshot = try await db.collection(FirebaseConstants.listsCollection)
+            .whereField("shareSettings.allowSharing", isEqualTo: true)
+            .getDocuments()
+        
+        // Since we removed the shareCode from ShoppingList, we need to find it via invitations
+        // This is a temporary approach - in production we might store active share codes differently
+        guard let document = snapshot.documents.first else {
+            return nil
+        }
+        
+        return try document.data(as: ShoppingList.self)
+    }
+    
+    func findInvitationByShareCode(_ shareCode: String) async throws -> ListInvite? {
+        let snapshot = try await db.collection(FirebaseConstants.invitationsCollection)
+            .whereField("shareCode", isEqualTo: shareCode)
+            .whereField("status", isEqualTo: ListInvite.InviteStatus.pending.rawValue)
+            .limit(to: 1)
+            .getDocuments()
+        
+        guard let document = snapshot.documents.first else {
+            return nil
+        }
+        
+        return try document.data(as: ListInvite.self)
     }
 }
 
