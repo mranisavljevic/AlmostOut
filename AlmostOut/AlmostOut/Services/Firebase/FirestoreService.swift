@@ -6,6 +6,7 @@
 //
 
 import Combine
+import FirebaseAuth
 import FirebaseFirestore
 import Foundation
 
@@ -17,7 +18,7 @@ class FirestoreService: DatabaseServiceProtocol {
     func observeList(id: String) -> AnyPublisher<ShoppingList?, Error> {
         let subject = PassthroughSubject<ShoppingList?, Error>()
         
-        let listener = db.collection(FirebaseConstants.listsCollection)
+        _ = db.collection(FirebaseConstants.listsCollection)
             .document(id)
             .addSnapshotListener { snapshot, error in
                 if let error = error {
@@ -223,7 +224,7 @@ class FirestoreService: DatabaseServiceProtocol {
     func observeIncomingInvitations(for userId: String, userEmail: String) -> AnyPublisher<[ListInvite], Error> {
         let subject = PassthroughSubject<[ListInvite], Error>()
         
-        let listener = db.collection(FirebaseConstants.invitationsCollection)
+        _ = db.collection(FirebaseConstants.invitationsCollection)
             .whereField("status", isEqualTo: ListInvite.InviteStatus.pending.rawValue)
             .whereFilter(Filter.orFilter([
                 Filter.whereField("invitedUserId", isEqualTo: userId),
@@ -255,7 +256,7 @@ class FirestoreService: DatabaseServiceProtocol {
     func observeOutgoingInvitations(for userId: String) -> AnyPublisher<[ListInvite], Error> {
         let subject = PassthroughSubject<[ListInvite], Error>()
         
-        let listener = db.collection(FirebaseConstants.invitationsCollection)
+        _ = db.collection(FirebaseConstants.invitationsCollection)
             .whereField("invitedBy", isEqualTo: userId)
             .order(by: "createdAt", descending: true)
             .addSnapshotListener { snapshot, error in
@@ -315,6 +316,35 @@ class FirestoreService: DatabaseServiceProtocol {
         }
         
         return try document.data(as: ListInvite.self)
+    }
+    
+    func inviteUser(email: String, to listId: String, role: ShoppingList.ListMember.MemberRole) async throws {
+        // Get current user from Firebase Auth
+        guard let currentUser = Auth.auth().currentUser else {
+            throw NSError(domain: "FirestoreService", code: -1, userInfo: [NSLocalizedDescriptionKey: "No authenticated user"])
+        }
+        
+        // Get the list to retrieve its name
+        let listDoc = try await db.collection(FirebaseConstants.listsCollection).document(listId).getDocument()
+        guard let listData = try? listDoc.data(as: ShoppingList.self) else {
+            throw NSError(domain: "FirestoreService", code: -1, userInfo: [NSLocalizedDescriptionKey: "List not found"])
+        }
+        
+        let invite = ListInvite(
+            listId: listId,
+            listName: listData.name,
+            invitedBy: currentUser.uid,
+            invitedByName: currentUser.displayName ?? currentUser.email ?? "Unknown",
+            role: role
+        )
+        _ = try await createInvitation(invite)
+    }
+    
+    func acceptInvitation(id: String) async throws {
+        let inviteRef = db.collection(FirebaseConstants.invitationsCollection).document(id)
+        try await inviteRef.updateData([
+            "status": ListInvite.InviteStatus.accepted.rawValue
+        ])
     }
 }
 

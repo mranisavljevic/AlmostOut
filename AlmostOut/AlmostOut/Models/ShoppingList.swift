@@ -20,7 +20,7 @@ struct ShoppingList: Identifiable, Codable {
     let isArchived: Bool
     let totalItems: Int
     let completedItems: Int
-    let shareSettings: ShareSettings
+    var shareSettings: ShareSettings
     
     struct ListMember: Codable {
         let role: MemberRole
@@ -96,5 +96,10 @@ struct ShoppingList: Identifiable, Codable {
     
     var canCreateShareLinks: Bool {
         return shareSettings.allowSharing
+    }
+    
+    var shareableURL: String? {
+        guard shareSettings.allowSharing, let id = id else { return nil }
+        return "https://almostout.app/join/\(id)"
     }
 }

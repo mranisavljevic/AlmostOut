@@ -69,7 +69,8 @@ class ListsViewModel: ObservableObject {
             memberDetails: [userId: memberInfo],  // Details stored separately
             isArchived: false,
             totalItems: 0,
-            completedItems: 0
+            completedItems: 0,
+            shareSettings: ShoppingList.ShareSettings()
         )
         
         do {

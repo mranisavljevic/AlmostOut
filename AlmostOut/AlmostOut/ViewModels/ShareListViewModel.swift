@@ -68,7 +68,7 @@ class ShareListViewModel: ObservableObject {
             listId: listId,
             listName: list.name,
             invitedBy: currentUser.uid,
-            invitedByName: currentUser.displayName ?? currentUser.email ?? "Unknown",
+            invitedByName: currentUser.displayName,
             role: role
         )
         

@@ -86,7 +86,7 @@ class JoinListViewModel: ObservableObject {
         errorMessage = nil
         
         do {
-            let listId = try await inviteService.joinListViaShareCode(shareCode, userId: currentUser.uid)
+            _ = try await inviteService.joinListViaShareCode(shareCode, userId: currentUser.uid)
             joinedSuccessfully = true
             
             // Navigate to the joined list

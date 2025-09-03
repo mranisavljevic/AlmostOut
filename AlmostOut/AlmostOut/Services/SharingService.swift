@@ -46,8 +46,8 @@ class SharingService: SharingServiceProtocol {
     
     func deactivateSharing(for listId: String) async throws {
         let disabledSettings = ShoppingList.ShareSettings(
-            isPubliclyShareable: false,
-            allowJoinViaLink: false
+            allowSharing: false,
+            maxMembers: nil
         )
         try await updateShareSettings(disabledSettings, for: listId)
     }

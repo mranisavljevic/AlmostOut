@@ -9,6 +9,7 @@ import Foundation
 import Combine
 
 protocol DatabaseServiceProtocol {
+    func observeList(id: String) -> AnyPublisher<ShoppingList?, Error>
     func observeLists(for userId: String) -> AnyPublisher<[ShoppingList], Error>
     func observeListItems(for listId: String) -> AnyPublisher<[ListItem], Error>
     
@@ -22,4 +23,8 @@ protocol DatabaseServiceProtocol {
     
     func inviteUser(email: String, to listId: String, role: ShoppingList.ListMember.MemberRole) async throws
     func acceptInvitation(id: String) async throws
+    
+    func findInvitationByShareCode(_ shareCode: String) async throws -> ListInvite?
+    func findListByShareCode(_ shareCode: String) async throws -> ShoppingList?
+    func removeMemberFromList(userId: String, from listId: String) async throws
 }

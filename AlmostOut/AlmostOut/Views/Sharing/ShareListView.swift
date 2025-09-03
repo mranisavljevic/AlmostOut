@@ -169,7 +169,7 @@ struct ShareLinkRowView: View {
                         
                         Text("Code: \(shareLink.shareCode)")
                             .font(.caption)
-                            .fontWeight(.mono)
+                            .fontWeight(.light)
                             .foregroundColor(.blue)
                     }
                     
