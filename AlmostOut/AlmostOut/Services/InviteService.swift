@@ -94,47 +94,103 @@ class InviteService: InviteServiceProtocol {
 }
 
 class MockInviteService: InviteServiceProtocol {
+    // Call tracking properties
+    private(set) var sentInvitations: [ListInvite] = []
+    private(set) var cancelledInvitationIds: [String] = []
+    private(set) var acceptedInvitations: [(inviteId: String, userId: String)] = []
+    private(set) var declinedInvitations: [(inviteId: String, userId: String)] = []
+    private(set) var joinedShareCodes: [(shareCode: String, userId: String)] = []
+    private(set) var resentInvitationIds: [String] = []
+    
+    // Mock data for returns
+    var mockIncomingInvitations: [ListInvite] = []
+    var mockOutgoingInvitations: [ListInvite] = []
+    var shouldFailOperations = false
+    var mockJoinedListId = "mock-joined-list-id"
+    
     func sendInvitation(_ invite: ListInvite) async throws -> String {
+        if shouldFailOperations {
+            throw InviteServiceError.invalidInvitation
+        }
+        
+        sentInvitations.append(invite)
         return UUID().uuidString
     }
     
     func getIncomingInvitations(for userId: String) -> AnyPublisher<[ListInvite], Error> {
-        let mockInvites = [
-            ListInvite(
-                listId: "list1",
-                listName: "Grocery List",
-                invitedBy: "user1",
-                invitedByName: "John Doe",
-                role: .editor,
-                inviteType: .email,
-                invitedEmail: "test@example.com"
-            )
-        ]
-        return Just(mockInvites).setFailureType(to: Error.self).eraseToAnyPublisher()
+        if shouldFailOperations {
+            return Fail(error: InviteServiceError.listNotFound)
+                .eraseToAnyPublisher()
+        }
+        
+        return Just(mockIncomingInvitations)
+            .setFailureType(to: Error.self)
+            .eraseToAnyPublisher()
     }
     
     func getOutgoingInvitations(for userId: String) -> AnyPublisher<[ListInvite], Error> {
-        return Just([]).setFailureType(to: Error.self).eraseToAnyPublisher()
+        if shouldFailOperations {
+            return Fail(error: InviteServiceError.listNotFound)
+                .eraseToAnyPublisher()
+        }
+        
+        return Just(mockOutgoingInvitations)
+            .setFailureType(to: Error.self)
+            .eraseToAnyPublisher()
     }
     
     func acceptInvitation(_ inviteId: String, userId: String) async throws {
-        // Mock implementation - no-op
+        if shouldFailOperations {
+            throw InviteServiceError.invitationExpired
+        }
+        
+        acceptedInvitations.append((inviteId: inviteId, userId: userId))
     }
     
     func declineInvitation(_ inviteId: String, userId: String) async throws {
-        // Mock implementation - no-op
+        if shouldFailOperations {
+            throw InviteServiceError.invalidInvitation
+        }
+        
+        declinedInvitations.append((inviteId: inviteId, userId: userId))
     }
     
     func cancelInvitation(_ inviteId: String) async throws {
-        // Mock implementation - no-op
+        if shouldFailOperations {
+            throw InviteServiceError.insufficientPermissions
+        }
+        
+        cancelledInvitationIds.append(inviteId)
     }
     
     func resendInvitation(_ inviteId: String) async throws {
-        // Mock implementation - no-op
+        if shouldFailOperations {
+            throw InviteServiceError.invitationExpired
+        }
+        
+        resentInvitationIds.append(inviteId)
     }
     
     func joinListViaShareCode(_ shareCode: String, userId: String) async throws -> String {
-        return "mock-joined-list-id"
+        if shouldFailOperations {
+            throw InviteServiceError.listNotFound
+        }
+        
+        joinedShareCodes.append((shareCode: shareCode, userId: userId))
+        return mockJoinedListId
+    }
+    
+    // Helper methods for testing
+    func reset() {
+        sentInvitations.removeAll()
+        cancelledInvitationIds.removeAll()
+        acceptedInvitations.removeAll()
+        declinedInvitations.removeAll()
+        joinedShareCodes.removeAll()
+        resentInvitationIds.removeAll()
+        mockIncomingInvitations.removeAll()
+        mockOutgoingInvitations.removeAll()
+        shouldFailOperations = false
     }
 }
 

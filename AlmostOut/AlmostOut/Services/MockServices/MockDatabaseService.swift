@@ -16,6 +16,9 @@ class MockDatabaseService: DatabaseServiceProtocol {
     var mockItems: [ListItem] = []
     var shouldFailOperations = false
     
+    // Call tracking properties
+    private(set) var removedMembers: [(userId: String, listId: String)] = []
+    
     func observeLists(for userId: String) -> AnyPublisher<[ShoppingList], Error> {
         listsSubject.send(mockLists)
         return listsSubject.eraseToAnyPublisher()
@@ -99,5 +102,57 @@ class MockDatabaseService: DatabaseServiceProtocol {
     
     func acceptInvitation(id: String) async throws {
         // Mock implementation
+    }
+    
+    func observeList(id: String) -> AnyPublisher<ShoppingList?, Error> {
+        let list = mockLists.first { $0.id == id }
+        return Just(list).setFailureType(to: Error.self).eraseToAnyPublisher()
+    }
+    
+    func addMemberToList(userId: String, memberInfo: ShoppingList.ListMember, to listId: String) async throws {
+        if shouldFailOperations {
+            throw NSError(domain: "MockError", code: 500, userInfo: [NSLocalizedDescriptionKey: "Database error"])
+        }
+        // Mock implementation - would update the list in real implementation
+    }
+    
+    func removeMemberFromList(userId: String, from listId: String) async throws {
+        if shouldFailOperations {
+            throw NSError(domain: "MockError", code: 500, userInfo: [NSLocalizedDescriptionKey: "Database error"])
+        }
+        
+        removedMembers.append((userId: userId, listId: listId))
+    }
+    
+    func findListByShareCode(_ shareCode: String) async throws -> ShoppingList? {
+        // Mock implementation
+        return mockLists.first
+    }
+    
+    func findInvitationByShareCode(_ shareCode: String) async throws -> ListInvite? {
+        // Mock implementation
+        return nil
+    }
+    
+    func createInvitation(_ invite: ListInvite) async throws -> String {
+        if shouldFailOperations {
+            throw NSError(domain: "MockError", code: 500, userInfo: [NSLocalizedDescriptionKey: "Database error"])
+        }
+        return UUID().uuidString
+    }
+    
+    func updateInvitation(_ invite: ListInvite) async throws {
+        if shouldFailOperations {
+            throw NSError(domain: "MockError", code: 500, userInfo: [NSLocalizedDescriptionKey: "Database error"])
+        }
+        // Mock implementation
+    }
+    
+    func observeIncomingInvitations(for userId: String, userEmail: String) -> AnyPublisher<[ListInvite], Error> {
+        return Just([]).setFailureType(to: Error.self).eraseToAnyPublisher()
+    }
+    
+    func observeOutgoingInvitations(for userId: String) -> AnyPublisher<[ListInvite], Error> {
+        return Just([]).setFailureType(to: Error.self).eraseToAnyPublisher()
     }
 }
