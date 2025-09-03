@@ -10,6 +10,7 @@ import SwiftUI
 struct ItemRowView: View {
     let item: ListItem
     let onToggleComplete: () -> Void
+    let onEdit: () -> Void
     
     var body: some View {
         HStack(spacing: 12) {
@@ -65,6 +66,12 @@ struct ItemRowView: View {
             Spacer()
         }
         .padding(.vertical, 4)
+        .swipeActions(edge: .trailing) {
+            Button("Edit") {
+                onEdit()
+            }
+            .tint(.blue)
+        }
     }
     
     private func priorityIcon(_ priority: ListItem.Priority) -> String {

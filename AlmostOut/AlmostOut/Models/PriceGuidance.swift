@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct PriceGuidance: Codable {
+struct PriceGuidance: Codable, Equatable {
     let type: PriceType
     let exactAmount: Double?
     let maxAmount: Double?
